@@ -1,0 +1,14 @@
+Package: MultipleTestingBoosting
+Title: High-Dimensional Model Selection Using MTB
+Version: 0.0.0.9000
+Authors@R: 
+    person("Charisios", "Grivas", email = "charisios.grivas@gmail.com", role = c("aut", "cre"))
+Description: The package implements the Multiple Testing Boosting procedure for model selection in high-dimensional
+    settings such as linear and probit/logit models. The methods have been developed by G. Kapetanios, V. Sarafidis,
+    A. Ventouri (2025) and C. Grivas, G. Kapetanios, Z. Psaradakis, V. Sarafidis, A. Ventouri and M. Vavra (2026) respectively.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    stats
