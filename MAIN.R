@@ -318,6 +318,8 @@ eu_tcsr_M  <- 10000L
 eu_n_workers <- safe_n_workers
 
 # EU plots
+eu_plots_only <- TRUE #If TRUE the eu code is not run
+
 eu_save_raw_series_plot <- TRUE
 eu_save_transformed_series_plot <- TRUE
 eu_save_individual_target_plots <- TRUE
