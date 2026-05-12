@@ -281,8 +281,61 @@ cat("\nSaved T-CSR fallback CSV to:\n")
 cat(tcsr_csv, "\n")
 
 # ============================================================
-# SAVE METRIC TABLES
+# SAVE METRIC TABLES AS LaTeX
 # ============================================================
+
+rec_save_metric_table_tex <- function(tbl,
+                                      file,
+                                      caption,
+                                      label,
+                                      placement = "H",
+                                      font_size = "\\scriptsize",
+                                      tabcolsep = "4pt",
+                                      arraystretch = "1.00",
+                                      note = NULL) {
+  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+  
+  align <- paste0("l", paste(rep("c", ncol(tbl) - 1), collapse = ""))
+  
+  header <- paste(names(tbl), collapse = " & ")
+  
+  body_lines <- apply(tbl, 1, function(row) {
+    paste(row, collapse = " & ")
+  })
+  
+  lines <- c(
+    paste0("\\begin{table}[", placement, "]"),
+    "\\centering",
+    paste0("\\caption{", caption, "}"),
+    paste0("\\label{", label, "}"),
+    font_size,
+    paste0("\\setlength{\\tabcolsep}{", tabcolsep, "}"),
+    paste0("\\renewcommand{\\arraystretch}{", arraystretch, "}"),
+    "\\begin{adjustbox}{max width=\\textwidth}",
+    paste0("\\begin{tabular}{", align, "}"),
+    "\\toprule",
+    paste0(header, " \\\\"),
+    "\\midrule",
+    paste0(body_lines, " \\\\"),
+    "\\bottomrule",
+    "\\end{tabular}",
+    "\\end{adjustbox}"
+  )
+  
+  if (!is.null(note)) {
+    lines <- c(
+      lines,
+      "\\vspace{0.4em}",
+      paste0("\\parbox{0.98\\textwidth}{\\footnotesize ", note, "}")
+    )
+  }
+  
+  lines <- c(lines, "\\end{table}")
+  
+  writeLines(lines, con = file)
+  
+  invisible(file)
+}
 
 metrics_to_save <- c(
   "qps",
@@ -290,6 +343,22 @@ metrics_to_save <- c(
   "auc",
   "mcfadden_r2",
   "estrella_r2"
+)
+
+metric_captions <- c(
+  qps = "Canada recession forecasting results: QPS",
+  lps = "Canada recession forecasting results: LPS",
+  auc = "Canada recession forecasting results: AUC",
+  mcfadden_r2 = "Canada recession forecasting results: McFadden pseudo-$R^2$",
+  estrella_r2 = "Canada recession forecasting results: Estrella pseudo-$R^2$"
+)
+
+metric_notes <- c(
+  qps = "Note: Lower values indicate better predictive performance. A star (*) indicates significance at the 10\\% level in the Diebold--Mariano test relative to AR,BIC. Green cells indicate the best-performing method for each horizon.",
+  lps = "Note: Lower values indicate better predictive performance. A star (*) indicates significance at the 10\\% level in the Diebold--Mariano test relative to AR,BIC. Green cells indicate the best-performing method for each horizon.",
+  auc = "Note: Higher values indicate better classification performance. Green cells indicate the best-performing method for each horizon.",
+  mcfadden_r2 = "Note: Higher values indicate better fit relative to the null probability model. Green cells indicate the best-performing method for each horizon.",
+  estrella_r2 = "Note: Higher values indicate better fit relative to the null probability model. Green cells indicate the best-performing method for each horizon."
 )
 
 for (metric in metrics_to_save) {
@@ -303,19 +372,17 @@ for (metric in metrics_to_save) {
   
   metric_file <- file.path(
     canada_recession_dir,
-    paste0("canada_recession_table_", metric, ".csv")
+    paste0("canada_recession_table_", metric, ".tex")
   )
   
-  utils::write.csv(
-    metric_tbl,
-    metric_file,
-    row.names = FALSE
+  rec_save_metric_table_tex(
+    tbl = metric_tbl,
+    file = metric_file,
+    caption = metric_captions[[metric]],
+    label = paste0("tab:canada_recession_", metric),
+    note = metric_notes[[metric]]
   )
   
-  cat("\nSaved", metric, "table to:\n")
+  cat("\nSaved", metric, "LaTeX table to:\n")
   cat(metric_file, "\n")
 }
-
-cat("\nCanada recession script finished.\n")
-cat("Outputs saved to:\n")
-cat(canada_recession_dir, "\n")
