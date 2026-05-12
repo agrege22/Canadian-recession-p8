@@ -2107,7 +2107,10 @@ save_fortin_table_grouped_tex <- function(all_results,
   
   header1_parts <- c(" ")
   for (lab in target_labels) {
-    header1_parts <- c(header1_parts, paste0("\\multicolumn{", n_h, "}{c}{", lab, "}"))
+    header1_parts <- c(
+      header1_parts,
+      paste0("\\multicolumn{", n_h, "}{c}{", lab, "}")
+    )
   }
   header1 <- paste(header1_parts, collapse = " & ")
   
@@ -2138,19 +2141,19 @@ save_fortin_table_grouped_tex <- function(all_results,
   }
   
   lines <- c(
-    paste0("\\\\begin{table}[", placement, "]"),
-    "\\\\centering",
-    if (!is.null(full_caption)) paste0("\\\\caption{", full_caption, "}") else NULL,
-    if (!is.null(label)) paste0("\\\\label{", label, "}") else NULL,
+    paste0("\\begin{table}[", placement, "]"),
+    "\\centering",
+    if (!is.null(full_caption)) paste0("\\caption{", full_caption, "}") else NULL,
+    if (!is.null(label)) paste0("\\label{", label, "}") else NULL,
     font_size,
-    paste0("\\\\setlength{\\\\tabcolsep}{", tabcolsep, "}"),
-    paste0("\\\\renewcommand{\\\\arraystretch}{", arraystretch, "}"),
-    paste0("\\\\begin{tabular}{", align, "}"),
-    "\\\\toprule",
+    paste0("\\setlength{\\tabcolsep}{", tabcolsep, "}"),
+    paste0("\\renewcommand{\\arraystretch}{", arraystretch, "}"),
+    paste0("\\begin{tabular}{", align, "}"),
+    "\\toprule",
     paste0(header1, " \\\\"),
     cmid_line,
     paste0(header2, " \\\\"),
-    "\\\\midrule"
+    "\\midrule"
   )
   
   for (i in seq_len(nrow(body))) {
@@ -2162,7 +2165,16 @@ save_fortin_table_grouped_tex <- function(all_results,
     lines,
     "\\bottomrule",
     "\\end{tabular}",
-    if (!is.null(note)) paste0("\\vspace{0.25em}\n\n\\parbox{0.95\\textwidth}{\\footnotesize ", note, "}") else NULL,
+    if (!is.null(note)) {
+      paste0(
+        "\\vspace{0.25em}\n\n",
+        "\\parbox{0.95\\textwidth}{\\footnotesize ",
+        note,
+        "}"
+      )
+    } else {
+      NULL
+    },
     "\\end{table}"
   )
   

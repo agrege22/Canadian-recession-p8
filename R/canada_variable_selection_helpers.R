@@ -1120,8 +1120,8 @@ compare_methods_expanding_fixed <- function(
     retune_origins = NA_integer_,
     train_end_date = df$Date[initial_train],
     first_oos_date = df$Date[initial_train + 1],
-    train_end_target_date = df$Date[initial_train] %m+% lubridate::months(h),
-    first_oos_target_date = df$Date[initial_train + 1] %m+% lubridate::months(h)
+    train_end_target_date = df$Date[initial_train] %m+% lubridate::period(months = h),
+    first_oos_target_date = df$Date[initial_train + 1] %m+% lubridate::period(months = h)
   )
 }
 
@@ -1193,7 +1193,7 @@ build_selection_long <- function(pred_df, target_col) {
   pred_df |>
     dplyr::transmute(
       Date = as.Date(.data$Date),
-      Date_target = .data$Date %m+% lubridate::months(h),
+      Date_target = .data$Date %m+% lubridate::period(months = h),
       methods = .data$method,
       sel_string = .data$selected_vars
     ) |>
@@ -1215,7 +1215,7 @@ build_selection_snapshot_tables <- function(pred_df, target_col, n_snapshots = 1
   all_dates <- pred_df |>
     dplyr::distinct(.data$Date) |>
     dplyr::arrange(.data$Date) |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   idx <- equally_spaced_indices(nrow(all_dates), n_snapshots)
   
@@ -1320,7 +1320,7 @@ make_top_selection_heatmap_data <- function(
   all_dates <- pred_df_methods |>
     dplyr::distinct(.data$Date) |>
     dplyr::arrange(.data$Date) |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   heat_tbl <- tidyr::crossing(
     top_tbl |>
@@ -1357,7 +1357,7 @@ plot_selected_counts_separate <- function(
   h <- parse_h_from_target(target_col)
   
   df2 <- pred_df |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   truth_df <- df2 |>
     dplyr::distinct(.data$Date_target, .data$y) |>
@@ -1411,7 +1411,7 @@ plot_selected_counts_together <- function(pred_df, target_col) {
   h <- parse_h_from_target(target_col)
   
   df2 <- pred_df |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   truth_df <- df2 |>
     dplyr::distinct(.data$Date_target, .data$y) |>
@@ -1509,7 +1509,7 @@ plot_top_selection_heatmaps <- function(
   truth_df <- pred_df |>
     dplyr::distinct(.data$Date, .data$y) |>
     dplyr::arrange(.data$Date) |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h)) |>
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h)) |>
     dplyr::distinct(.data$Date_target, .data$y)
   
   rec_spans <- make_recession_spans(truth_df$Date_target, truth_df$y)
@@ -1620,7 +1620,7 @@ plot_probs_separate <- function(
   h <- parse_h_from_target(target_col)
   
   df2 <- pred_df |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   truth_df <- df2 |>
     dplyr::distinct(.data$Date_target, .data$y) |>
@@ -1687,7 +1687,7 @@ plot_probs_together <- function(pred_df, target_col) {
   h <- parse_h_from_target(target_col)
   
   df2 <- pred_df |>
-    dplyr::mutate(Date_target = .data$Date %m+% lubridate::months(h))
+    dplyr::mutate(Date_target = .data$Date %m+% lubridate::period(months = h))
   
   truth_df <- df2 |>
     dplyr::distinct(.data$Date_target, .data$y) |>
@@ -1750,7 +1750,7 @@ plot_probs_faceted <- function(
   
   df2 <- pred_df |>
     dplyr::mutate(
-      Date_target = .data$Date %m+% lubridate::months(h),
+      Date_target = .data$Date %m+% lubridate::period(months = h),
       method = base::factor(.data$method, levels = method_levels)
     )
   
