@@ -1,5 +1,4 @@
-Run the project from MAIN.R
-
+Run the project from MAIN.R (requires rtools45 for farmselect)
 
 
 \# P8 Forecasting Project
