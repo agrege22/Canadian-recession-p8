@@ -9,24 +9,24 @@ suppressPackageStartupMessages({
 here::i_am("MAIN.R")
 
 cat("\nProject root detected as:\n")
-print(here::here())
+  print(here::here())
 
 # ============================================================
 # CHOOSE WHAT TO RUN
 # ============================================================
 
-run_scraping                  <- FALSE # Gather new Canada data
+run_scraping                  <- TRUE # Gather new Canada data
 
 # Cleaning options:
 # "auto"  = run only if cleaned files are missing and needed
 # "force" = always rebuild cleaned files
 # FALSE   = never run cleaning, might not work
-run_canada_cleaning           <- "auto"
+run_canada_cleaning           <- "force"
 
-run_heatmaps_blags            <- FALSE
-run_canada_targets            <- FALSE
-run_canada_recession          <- FALSE
-run_canada_variable_selection <- FALSE
+run_heatmaps_blags            <- TRUE
+run_canada_targets            <- TRUE
+run_canada_recession          <- TRUE
+run_canada_variable_selection <- TRUE
 
 run_eu                        <- TRUE
 
@@ -34,7 +34,7 @@ run_eu                        <- TRUE
 # PACKAGE SETTINGS
 # ============================================================
 
-install_local_packages <- FALSE
+install_local_packages <- TRUE
 
 # ============================================================
 # THREAD SETTINGS
@@ -56,7 +56,7 @@ project_name <- "P8_forecasting"
 
 horizons <- c(1, 3, 6, 12)
 
-n_workers <- 15L
+n_workers <- 19L
 
 available_cores <- tryCatch(
   as.integer(parallel::detectCores(logical = TRUE)),
@@ -208,6 +208,9 @@ canada_recession_factor_probit_k <- 3L
 # CANADA VARIABLE-SELECTION PARAMETERS
 # ============================================================
 
+
+canada_selection_panel_name <- "panel_nonprov_clean_with_recession"
+
 canada_selection_initial_train <- 84L
 canada_selection_min_class_count <- 3L
 
@@ -218,10 +221,14 @@ canada_selection_maxit_post_logit <- 300L
 
 canada_selection_threshold_class <- 0.5
 
+canada_selection_ocmt_pval <- 0.05
+canada_selection_bmt_pval <- 0.05
+canada_selection_farm_tau <- 2
+
 canada_selection_fixed_hyper <- list(
-  "OCMT" = 0.05,
-  "BMT" = 0.05,
-  "FarmSelect" = 2
+  "OCMT" = canada_selection_ocmt_pval,
+  "BMT" = canada_selection_bmt_pval,
+  "FarmSelect" = canada_selection_farm_tau
 )
 
 canada_selection_n_snapshots <- 10L
@@ -246,10 +253,21 @@ eu_excel_sheet <- 2
 eu_transform_lag_season <- 4L
 
 # Sample construction
-eu_remove_vars_with_na_pre1980 <- TRUE
+eu_remove_vars_with_na_pre1980 <- FALSE
 eu_pre1980_cutoff_date <- as.Date("1980-01-01")
 
-eu_dataset_label <- "EU_data_dropvars_pre1980"
+# Dataset naming follows the old EU-code logic:
+# TRUE  = use pre-1980 data by dropping variables with NA before 1980
+# FALSE = keep all variables, but cut the sample from 1980 onward
+eu_dataset_label <- if (isTRUE(eu_remove_vars_with_na_pre1980)) {
+  "EU_data_dropvars_pre1980"
+} else {
+  "EU_data_cutoff"
+}
+
+cat("\nEU sample construction:\n")
+cat("Remove variables with NA before 1980:", eu_remove_vars_with_na_pre1980, "\n")
+cat("EU dataset label:", eu_dataset_label, "\n")
 
 # EU targets
 eu_real_activity_targets <- c("YER", "PCR")
@@ -318,7 +336,7 @@ eu_tcsr_M  <- 10000L
 eu_n_workers <- safe_n_workers
 
 # EU plots
-eu_plots_only <- TRUE #If TRUE the eu code is not run
+eu_plots_only <- FALSE #If TRUE the eu code is not run
 
 eu_save_raw_series_plot <- TRUE
 eu_save_transformed_series_plot <- TRUE
