@@ -691,7 +691,7 @@ rec_predict_farm_native_logit <- function(farm_obj, Z_test) {
   }
   
   pred <- tryCatch(
-    as.numeric(predict(farm_obj$fit, Z_test, type = "response")),
+    as.numeric(predict(farm_obj$fit, newx = Z_test, type = "response")),
     error = function(e) NA_real_
   )
   
@@ -1556,13 +1556,9 @@ rec_run_one_target_one_horizon_block <- function(panel_rec_model, rec_target,
       last_tune$farm <- t0
     }
     
-    pred_tbl[kk, "FarmSelect"] <- rec_predict_from_farm_selection(
-      y_train = Zy_train,
-      Xcand_train = Xcand_train,
-      Xcand_test = Xcand_test,
-      Xcond_train = Xcond_train,
-      Xcond_test = Xcond_test,
-      farm_obj = spec$farm_fit
+    pred_tbl[kk, "FarmSelect"] <- rec_predict_farm_native_logit(
+      farm_obj = spec$farm_fit,
+      Z_test = Xcand_test
     )
     
     pred_tbl[kk, "RF-X"] <- rec_fit_predict_rf(

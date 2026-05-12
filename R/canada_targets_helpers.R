@@ -1494,22 +1494,17 @@ run_fortin_one_target_one_h_detail_nonchronos <- function(panel_can,
           last_tune$farm <- t0
         }
         
-        farm_failed <- is.null(spec$farm_fit) ||
-          isTRUE(spec$farm_fit$use_mean) ||
-          is.null(spec$farm_fit$fit)
+        farm_pred <- predict_farm_native(
+          farm_obj = spec$farm_fit,
+          Z_test = Xcand_test,
+          return_info = TRUE
+        )
         
-        if (isTRUE(farm_failed)) {
+        if (isTRUE(farm_pred$used_fallback)) {
           fallback_forecasts["FarmSelect"] <- fallback_forecasts["FarmSelect"] + 1L
         }
         
-        pred_tbl[i, "FarmSelect"] <- predict_from_selection_ols(
-          y_train = Zy_train,
-          Xcand_train = Xcand_train,
-          Xcand_test = Xcand_test,
-          Xcond_train = Xcond_train,
-          Xcond_test = Xcond_test,
-          selected = if (!is.null(spec$farm_fit)) spec$farm_fit$selected_idx else integer(0)
-        )
+        pred_tbl[i, "FarmSelect"] <- farm_pred$pred
       }
       
       for (lev in names(bmt_pvals)) {

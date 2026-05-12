@@ -1160,6 +1160,51 @@ eu_fit_farm_native <- function(y_train,
   )
 }
 
+eu_predict_farm_native <- function(farm_obj, Z_test, return_info = FALSE) {
+  out <- function(pred, used_fallback, reason) {
+    if (isTRUE(return_info)) {
+      return(list(
+        pred = as.numeric(pred),
+        used_fallback = isTRUE(used_fallback),
+        reason = reason
+      ))
+    }
+    
+    as.numeric(pred)
+  }
+  
+  if (is.null(farm_obj)) {
+    return(out(NA_real_, TRUE, "missing_farm_object"))
+  }
+  
+  if (!is.matrix(Z_test)) {
+    Z_test <- matrix(as.numeric(Z_test), nrow = 1)
+  }
+  
+  if (nrow(Z_test) != 1) {
+    return(out(NA_real_, TRUE, "bad_Z_test_rows"))
+  }
+  
+  if (!is.finite(farm_obj$y_mean)) {
+    return(out(NA_real_, TRUE, "bad_y_mean"))
+  }
+  
+  if (isTRUE(farm_obj$use_mean) || is.null(farm_obj$fit)) {
+    return(out(farm_obj$y_mean, TRUE, "farm_fit_fallback"))
+  }
+  
+  pred <- tryCatch(
+    as.numeric(predict(farm_obj$fit, newx = Z_test, type = "response")),
+    error = function(e) NA_real_
+  )
+  
+  if (length(pred) == 0 || !is.finite(pred[1])) {
+    return(out(farm_obj$y_mean, TRUE, "prediction_failed"))
+  }
+  
+  out(pred[1], FALSE, NA_character_)
+}
+
 # ============================================================
 # TIME SERIES / PCA / RF / T-CSR HELPERS
 # ============================================================
@@ -2044,43 +2089,34 @@ eu_run_one_target_one_h_detail_nonchronos <- function(
       }
       
       if ("FarmSelect" %in% models_to_run) {
-        if (need_retune(last_tune$farm, t0)) {
-          model_specs$farm_fit <- eu_fit_farm_native(
-            y_train = Zy_train,
-            Z_train = Xcand_train,
-            loss = farm_ctrl$loss,
-            robust = farm_ctrl$robust,
-            cv = farm_ctrl$cv,
-            tau = farm_ctrl$tau,
-            K.factors = farm_ctrl$K.factors,
-            max.iter = farm_ctrl$max.iter,
-            nfolds = farm_ctrl$nfolds,
-            eps = farm_ctrl$eps
-          )
-          
-          if (isTRUE(model_specs$farm_fit$use_mean) || is.null(model_specs$farm_fit$fit)) {
-            fallback_tunes["FarmSelect"] <- fallback_tunes["FarmSelect"] + 1L
-          }
-          
-          last_tune$farm <- t0
+        model_specs$farm_fit <- eu_fit_farm_native(
+          y_train = Zy_train,
+          Z_train = Xcand_train,
+          loss = farm_ctrl$loss,
+          robust = farm_ctrl$robust,
+          cv = farm_ctrl$cv,
+          tau = farm_ctrl$tau,
+          K.factors = farm_ctrl$K.factors,
+          max.iter = farm_ctrl$max.iter,
+          nfolds = farm_ctrl$nfolds,
+          eps = farm_ctrl$eps
+        )
+        
+        if (isTRUE(model_specs$farm_fit$use_mean) || is.null(model_specs$farm_fit$fit)) {
+          fallback_tunes["FarmSelect"] <- fallback_tunes["FarmSelect"] + 1L
         }
         
-        farm_failed <- is.null(model_specs$farm_fit) ||
-          isTRUE(model_specs$farm_fit$use_mean) ||
-          is.null(model_specs$farm_fit$fit)
+        farm_pred <- eu_predict_farm_native(
+          farm_obj = model_specs$farm_fit,
+          Z_test = Xcand_test,
+          return_info = TRUE
+        )
         
-        if (isTRUE(farm_failed)) {
+        if (isTRUE(farm_pred$used_fallback)) {
           fallback_forecasts["FarmSelect"] <- fallback_forecasts["FarmSelect"] + 1L
         }
         
-        pred_tbl[i, "FarmSelect"] <- eu_predict_from_selection_ols(
-          y_train = Zy_train,
-          Xcand_train = Xcand_train,
-          Xcand_test = Xcand_test,
-          Xcond_train = Xcond_train,
-          Xcond_test = Xcond_test,
-          selected = if (!is.null(model_specs$farm_fit)) model_specs$farm_fit$selected_idx else integer(0)
-        )
+        pred_tbl[i, "FarmSelect"] <- farm_pred$pred
       }
       
       for (lev in names(bmt_pvals)) {

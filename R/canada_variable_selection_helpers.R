@@ -487,6 +487,176 @@ select_vars_farmselect <- function(
   )
 }
 
+fit_predict_farmselect_binary <- function(
+    y_train,
+    X_train,
+    X_test,
+    tau = 2,
+    max.iter_farm = 1200,
+    nfolds = 10L,
+    eps = 1e-3,
+    loss = "lasso",
+    robust = FALSE,
+    cv = TRUE,
+    K.factors = NULL
+) {
+  y_train <- as.numeric(y_train)
+  
+  if (!is.matrix(X_train)) X_train <- as.matrix(X_train)
+  if (!is.matrix(X_test)) X_test <- as.matrix(X_test)
+  
+  p_bar <- mean(y_train, na.rm = TRUE)
+  p_bar <- pmin(pmax(p_bar, 1e-8), 1 - 1e-8)
+  
+  fallback <- function(fit_type, nfolds_used = NA_integer_) {
+    list(
+      p = rep(p_bar, nrow(X_test)),
+      selected = character(0),
+      n_selected = 0L,
+      fit_type = fit_type,
+      lambda_min = NA_real_,
+      nfolds_used = nfolds_used,
+      n_factor_nonzero = NA_integer_,
+      n_resid_nonzero = NA_integer_,
+      intercept_hat = NA_real_,
+      coef_full_string = "",
+      factor_coef_string = "",
+      resid_coef_string = "",
+      selected_coef_string = "",
+      model_form = NA_character_
+    )
+  }
+  
+  ok_x <- if (ncol(X_train) == 0) {
+    rep(TRUE, nrow(X_train))
+  } else {
+    apply(X_train, 1, function(r) all(is.finite(r)))
+  }
+  
+  ok_y <- is.finite(y_train) & y_train %in% c(0, 1)
+  ok <- ok_x & ok_y
+  
+  y2 <- y_train[ok]
+  X2 <- X_train[ok, , drop = FALSE]
+  
+  if (length(y2) == 0 ||
+      length(unique(y2)) < 2 ||
+      ncol(X2) == 0 ||
+      nrow(X2) <= 4 ||
+      ncol(X2) <= 4) {
+    return(fallback("mean_no_selection"))
+  }
+  
+  n0 <- sum(y2 == 0)
+  n1 <- sum(y2 == 1)
+  nfolds_use <- min(as.integer(nfolds), n0, n1)
+  
+  if (!is.finite(nfolds_use) || nfolds_use < 2L) {
+    return(fallback("mean_too_few_class_for_cv", as.integer(nfolds_use)))
+  }
+  
+  fit <- tryCatch(
+    farm.select(
+      X = X2,
+      Y = y2,
+      loss = loss,
+      robust = robust,
+      cv = cv,
+      tau = tau,
+      lin.reg = FALSE,
+      K.factors = K.factors,
+      max.iter = max.iter_farm,
+      nfolds = nfolds_use,
+      eps = eps,
+      verbose = FALSE
+    ),
+    error = function(e) NULL
+  )
+  
+  if (is.null(fit)) {
+    return(fallback("mean_farmselect_fail", as.integer(nfolds_use)))
+  }
+  
+  p_hat <- tryCatch(
+    as.numeric(predict(fit, newx = X_test, type = "response")),
+    error = function(e) rep(NA_real_, nrow(X_test))
+  )
+  
+  if (length(p_hat) != nrow(X_test) || any(!is.finite(p_hat))) {
+    return(fallback("mean_farmselect_predict_fail", as.integer(nfolds_use)))
+  }
+  
+  p_hat <- pmin(pmax(p_hat, 1e-8), 1 - 1e-8)
+  
+  idx <- integer(0)
+  
+  if (!is.null(fit$beta.chosen)) {
+    idx <- unique(as.integer(fit$beta.chosen))
+    idx <- idx[is.finite(idx) & idx >= 1 & idx <= ncol(X2)]
+  }
+  
+  selected_vars <- if (length(idx) > 0) {
+    colnames(X2)[idx]
+  } else {
+    character(0)
+  }
+  
+  selected_vars <- unique(selected_vars)
+  
+  lambda_min <- if (!is.null(fit$lambda.min) && length(fit$lambda.min) >= 1) {
+    suppressWarnings(as.numeric(fit$lambda.min)[1])
+  } else {
+    NA_real_
+  }
+  
+  factor_coef <- fit$factor.coef
+  if (is.null(factor_coef)) factor_coef <- numeric(0)
+  factor_coef <- as.numeric(factor_coef)
+  names(factor_coef) <- paste0("Factor", seq_along(factor_coef))
+  
+  selected_coef <- fit$coef.chosen
+  if (is.null(selected_coef)) selected_coef <- numeric(0)
+  selected_coef <- as.numeric(selected_coef)
+  
+  if (length(selected_coef) == length(selected_vars)) {
+    names(selected_coef) <- selected_vars
+  }
+  
+  n_factor_nonzero <- sum(is.finite(factor_coef) & abs(factor_coef) > 0)
+  n_resid_nonzero <- length(selected_vars)
+  
+  coef_full_sparse <- c(
+    "(Intercept)" = fit$intercept,
+    factor_coef,
+    selected_coef
+  )
+  
+  fit_type <- if (n_resid_nonzero > 0) {
+    "farmselect_logit_factors_plus_selected_residuals"
+  } else if (n_factor_nonzero > 0) {
+    "farmselect_logit_factor_only"
+  } else {
+    "farmselect_logit_intercept_only"
+  }
+  
+  list(
+    p = p_hat,
+    selected = selected_vars,
+    n_selected = length(selected_vars),
+    fit_type = fit_type,
+    lambda_min = lambda_min,
+    nfolds_used = as.integer(nfolds_use),
+    n_factor_nonzero = as.integer(n_factor_nonzero),
+    n_resid_nonzero = as.integer(n_resid_nonzero),
+    intercept_hat = as.numeric(fit$intercept),
+    coef_full_string = serialize_named_numeric(coef_full_sparse),
+    factor_coef_string = serialize_named_numeric(factor_coef),
+    resid_coef_string = serialize_named_numeric(selected_coef),
+    selected_coef_string = serialize_named_numeric(selected_coef),
+    model_form = "FarmSelect logit: factors included unpenalized; idiosyncratic predictors penalized"
+  )
+}
+
 # ============================================================
 # POST-SELECTION LOGIT
 # ============================================================
@@ -652,9 +822,10 @@ forecast_one_origin <- function(
     hyper_now <- hyper_lookup[[m]][as.character(i)]
     
     if (m == "FarmSelect") {
-      sel_obj <- select_vars_farmselect(
+      fs_obj <- fit_predict_farmselect_binary(
         y_train = y_train,
         X_train = X_train,
+        X_test = X_test,
         tau = hyper_now,
         max.iter_farm = max.iter_farm,
         nfolds = 10L,
@@ -665,40 +836,26 @@ forecast_one_origin <- function(
         K.factors = NULL
       )
       
-      if (length(sel_obj$selected) == 0) {
-        p_hat <- mean(y_train, na.rm = TRUE)
-        fit_type <- sel_obj$fit_type
-      } else {
-        p_hat <- fit_predict_logit(
-          y_train = y_train,
-          X_train = X_train[, sel_obj$selected, drop = FALSE],
-          X_test = X_test[, sel_obj$selected, drop = FALSE],
-          maxit_post_logit = maxit_post_logit
-        )
-        
-        fit_type <- "logit_after_farmselect_selection"
-      }
-      
       return(
         tibble::tibble(
           Date = test_df$Date,
           y = test_df$y,
-          p = as.numeric(p_hat[1]),
+          p = as.numeric(fs_obj$p[1]),
           method = m,
           hyper_used = hyper_now,
-          n_selected = as.integer(sel_obj$n_selected),
-          fit_type = fit_type,
-          selected_vars = paste(sel_obj$selected, collapse = " | "),
-          model_form = NA_character_,
-          nfolds_used = sel_obj$nfolds_used,
-          n_factor_nonzero = NA_integer_,
-          n_resid_nonzero = NA_integer_,
-          intercept_hat = NA_real_,
-          lambda_min = sel_obj$lambda_min,
-          coef_full_string = "",
-          factor_coef_string = "",
-          resid_coef_string = "",
-          selected_coef_string = ""
+          n_selected = as.integer(fs_obj$n_selected),
+          fit_type = fs_obj$fit_type,
+          selected_vars = paste(fs_obj$selected, collapse = " | "),
+          model_form = fs_obj$model_form,
+          nfolds_used = fs_obj$nfolds_used,
+          n_factor_nonzero = fs_obj$n_factor_nonzero,
+          n_resid_nonzero = fs_obj$n_resid_nonzero,
+          intercept_hat = fs_obj$intercept_hat,
+          lambda_min = fs_obj$lambda_min,
+          coef_full_string = fs_obj$coef_full_string,
+          factor_coef_string = fs_obj$factor_coef_string,
+          resid_coef_string = fs_obj$resid_coef_string,
+          selected_coef_string = fs_obj$selected_coef_string
         )
       )
     }
