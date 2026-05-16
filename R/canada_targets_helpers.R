@@ -52,7 +52,7 @@ model_order_internal <- c(
 )
 
 model_display_names <- c(
-  "AR,BIC"                       = "AR,BIC (RMSPE)",
+  "AR,BIC"                       = "AR,BIC",
   "ARDI,BIC"                     = "ARDI,BIC",
   "Ridge-X"                      = "Ridge-X",
   "Lasso-X"                      = "Lasso-X",
@@ -866,17 +866,17 @@ dm_pval <- function(e_bench, e_model, h) {
   )
 }
 
-compute_rmspe_info <- function(y_true, y_hat) {
+compute_RMSE_info <- function(y_true, y_hat) {
   ok <- is.finite(y_true) & is.finite(y_hat)
   
   if (!any(ok)) {
-    return(list(rmspe = NA_real_, ok = ok))
+    return(list(RMSE = NA_real_, ok = ok))
   }
   
   e <- y_true[ok] - y_hat[ok]
   
   list(
-    rmspe = sqrt(mean(e^2)),
+    RMSE = sqrt(mean(e^2)),
     ok = ok
   )
 }
@@ -1721,10 +1721,10 @@ summarise_task_detail <- function(detail_res, models_final = model_order_interna
   
   res_h <- lapply(models_final, function(m) {
     if (!(m %in% names(pred_tbl))) {
-      return(list(rmspe = NA_real_, ok = rep(FALSE, length(y_true))))
+      return(list(RMSE = NA_real_, ok = rep(FALSE, length(y_true))))
     }
     
-    compute_rmspe_info(y_true, pred_tbl[[m]])
+    compute_RMSE_info(y_true, pred_tbl[[m]])
   })
   
   names(res_h) <- models_final
@@ -1732,8 +1732,8 @@ summarise_task_detail <- function(detail_res, models_final = model_order_interna
   bmk <- res_h[[benchmark_model]]
   
   ratio <- sapply(models_final, function(m) {
-    if (!is.finite(res_h[[m]]$rmspe) || !is.finite(bmk$rmspe) || bmk$rmspe <= 0) return(NA_real_)
-    res_h[[m]]$rmspe / bmk$rmspe
+    if (!is.finite(res_h[[m]]$RMSE) || !is.finite(bmk$RMSE) || bmk$RMSE <= 0) return(NA_real_)
+    res_h[[m]]$RMSE / bmk$RMSE
   })
   
   ratio[benchmark_model] <- NA_real_
@@ -1755,7 +1755,7 @@ summarise_task_detail <- function(detail_res, models_final = model_order_interna
   
   list(
     h = h,
-    rmspe_bmk = bmk$rmspe,
+    RMSE_bmk = bmk$RMSE,
     ratio = ratio,
     pvals = pvals,
     dates = detail_res$dates,
@@ -2024,7 +2024,7 @@ save_fortin_table_grouped_tex <- function(all_results,
                                           label = NULL,
                                           digits_ratio = 2,
                                           digits_rmse = 2,
-                                          note = "Note: This table reports the ratio of the root mean squared predictive error (RMSPE) relative to the benchmark AR,BIC model. A single * indicates Diebold-Mariano significance at the 10\\% level.",
+                                          note = "Note: This table reports the ratio of the root mean squared predictive error (RMSE) relative to the benchmark AR,BIC model. A single * indicates Diebold-Mariano significance at the 10\\% level.",
                                           highlight_color = "green!15",
                                           placement = "H",
                                           font_size = "\\tiny",
@@ -2041,7 +2041,7 @@ save_fortin_table_grouped_tex <- function(all_results,
   
   model_internal <- model_order_internal
   model_rows <- unname(model_display_names[model_internal])
-  model_rows[model_internal == "AR,BIC"] <- "AR,BIC (RMSPE)"
+  model_rows[model_internal == "AR,BIC"] <- "AR,BIC (RMSE)"
   
   n_targets <- length(targets)
   n_h <- length(horizons)
@@ -2065,7 +2065,7 @@ save_fortin_table_grouped_tex <- function(all_results,
       hh <- paste0("h", h)
       
       body[model_rows[model_internal == "AR,BIC"], col_index] <-
-        fmt_num(all_results[[tg]][[hh]]$rmspe_bmk, digits_rmse)
+        fmt_num(all_results[[tg]][[hh]]$RMSE_bmk, digits_rmse)
       
       for (m in setdiff(model_internal, "AR,BIC")) {
         r <- all_results[[tg]][[hh]]$ratio[m]
@@ -2086,7 +2086,7 @@ save_fortin_table_grouped_tex <- function(all_results,
     }
   }
   
-  benchmark_row <- "AR,BIC (RMSPE)"
+  benchmark_row <- "AR,BIC (RMSE)"
   non_benchmark_rows <- setdiff(rownames(body), benchmark_row)
   
   for (j in seq_len(n_cols)) {
@@ -2136,7 +2136,7 @@ save_fortin_table_grouped_tex <- function(all_results,
   if (!is.null(caption)) {
     full_caption <- paste0(
       caption,
-      ". Green cells indicate the lowest RMSPE ratio within each target-horizon column, including ties."
+      ". Green cells indicate the lowest RMSE ratio within each target-horizon column, including ties."
     )
   }
   
