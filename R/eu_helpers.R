@@ -315,7 +315,7 @@ eu_make_model_spec <- function(ocmt_pvals = c("5" = 0.05),
   )
   
   model_display_names <- c(
-    "AR,BIC"                        = "AR,BIC (RMSPE)",
+    "AR,BIC"                        = "AR,BIC",
     "ARDI,BIC"                      = "ARDI,BIC",
     "Ridge-X"                       = "Ridge-X",
     "Lasso-X"                       = "Lasso-X",
@@ -1291,17 +1291,17 @@ eu_dm_pval <- function(e_bench, e_model, h) {
   )
 }
 
-eu_compute_rmspe_info <- function(y_true, y_hat) {
+eu_compute_RMSE_info <- function(y_true, y_hat) {
   ok <- is.finite(y_true) & is.finite(y_hat)
   
   if (!any(ok)) {
-    return(list(rmspe = NA_real_, ok = ok))
+    return(list(RMSE = NA_real_, ok = ok))
   }
   
   e <- y_true[ok] - y_hat[ok]
   
   list(
-    rmspe = sqrt(mean(e^2)),
+    RMSE = sqrt(mean(e^2)),
     ok = ok
   )
 }
@@ -2471,9 +2471,9 @@ eu_summarise_task_detail <- function(detail_res, spec) {
   
   res_h <- lapply(models_final, function(m) {
     if (!(m %in% names(pred_tbl))) {
-      return(list(rmspe = NA_real_, ok = rep(FALSE, length(y_true))))
+      return(list(RMSE = NA_real_, ok = rep(FALSE, length(y_true))))
     }
-    eu_compute_rmspe_info(y_true, pred_tbl[[m]])
+    eu_compute_RMSE_info(y_true, pred_tbl[[m]])
   })
   
   names(res_h) <- models_final
@@ -2481,10 +2481,10 @@ eu_summarise_task_detail <- function(detail_res, spec) {
   bmk <- res_h[[spec$benchmark_model]]
   
   ratio <- sapply(models_final, function(m) {
-    if (!is.finite(res_h[[m]]$rmspe) || !is.finite(bmk$rmspe) || bmk$rmspe <= 0) {
+    if (!is.finite(res_h[[m]]$RMSE) || !is.finite(bmk$RMSE) || bmk$RMSE <= 0) {
       return(NA_real_)
     }
-    res_h[[m]]$rmspe / bmk$rmspe
+    res_h[[m]]$RMSE / bmk$RMSE
   })
   
   ratio[spec$benchmark_model] <- NA_real_
@@ -2510,7 +2510,7 @@ eu_summarise_task_detail <- function(detail_res, spec) {
   
   list(
     h = h,
-    rmspe_bmk = bmk$rmspe,
+    RMSE_bmk = bmk$RMSE,
     ratio = ratio,
     pvals = pvals,
     dates = detail_res$dates,
@@ -2643,7 +2643,7 @@ eu_build_merged_results <- function(nonchronos_results,
     
     out[[tg]][[paste0("h", h)]] <- res_merged[c(
       "h",
-      "rmspe_bmk",
+      "RMSE_bmk",
       "ratio",
       "pvals",
       "dates"
@@ -3392,7 +3392,7 @@ eu_save_fortin_table_grouped_tex <- function(all_results,
                                              label = NULL,
                                              digits_ratio = 2,
                                              digits_rmse = 2,
-                                             note = "Note: This table reports the ratio of the root mean squared predictive error (RMSPE) relative to the benchmark AR,BIC model. A star (*) indicates significance at the 10\\% level in the Diebold--Mariano test. Green cells indicate the lowest RMSPE ratio within each target-horizon column, including ties.",
+                                             note = "Note: This table reports the ratio of the root mean squared predictive error (RMSE) relative to the benchmark AR,BIC model. A star (*) indicates significance at the 10\\% level in the Diebold--Mariano test. Green cells indicate the lowest RMSE ratio within each target-horizon column, including ties.",
                                              highlight_color = "green!15",
                                              placement = "H",
                                              font_size = "\\scriptsize",
@@ -3410,7 +3410,7 @@ eu_save_fortin_table_grouped_tex <- function(all_results,
   
   model_internal <- spec$model_order_internal
   model_rows <- unname(spec$model_display_names[model_internal])
-  model_rows[model_internal == spec$benchmark_model] <- "AR,BIC (RMSPE)"
+  model_rows[model_internal == spec$benchmark_model] <- "AR,BIC (RMSE)"
   
   n_targets <- length(targets)
   n_h <- length(horizons)
@@ -3436,7 +3436,7 @@ eu_save_fortin_table_grouped_tex <- function(all_results,
       hh <- paste0("h", h)
       
       body[model_rows[model_internal == spec$benchmark_model], col_index] <-
-        fmt_num(all_results[[tg]][[hh]]$rmspe_bmk, digits_rmse)
+        fmt_num(all_results[[tg]][[hh]]$RMSE_bmk, digits_rmse)
       
       for (m in setdiff(model_internal, spec$benchmark_model)) {
         r <- all_results[[tg]][[hh]]$ratio[m]
@@ -3462,7 +3462,7 @@ eu_save_fortin_table_grouped_tex <- function(all_results,
     }
   }
   
-  benchmark_row <- "AR,BIC (RMSPE)"
+  benchmark_row <- "AR,BIC (RMSE)"
   non_benchmark_rows <- setdiff(rownames(body), benchmark_row)
   
   for (j in seq_len(n_cols)) {
