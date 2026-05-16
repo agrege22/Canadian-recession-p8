@@ -2136,7 +2136,7 @@ save_fortin_table_grouped_tex <- function(all_results,
   if (!is.null(caption)) {
     full_caption <- paste0(
       caption,
-      ". Green cells indicate the lowest RMSE ratio within each target-horizon column, including ties."
+      ". Table includes RMSE of AR,BIC, and the RMSE ratio of all other methods compared to the AR,BIC. Green cells indicate the lowest RMSE ratio within each target-horizon column, including ties."
     )
   }
   
